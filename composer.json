@@ -1,0 +1,28 @@
+{
+  "name": "lti/json-ld",
+  "type": "library",
+  "description": "JSON-LD markup generator",
+  "keywords": [
+    "json-ld",
+    "linguistic team international"
+  ],
+  "homepage": "http://forum.linguisticteam.org",
+  "authors": [
+    {
+      "name": "Bruno De Carvalho",
+      "email": "decarvalho.bruno@free.fr",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": ">=5.3"
+  },
+  "support": {
+    "email": "admin@linguisticteam.org"
+  },
+  "autoload": {
+    "psr-4": {
+      "Lti\\Seo\\": "src/"
+    }
+  }
+}

@@ -160,10 +160,11 @@ class Person extends Thing
     {
         static::$helper = $helper;
         static::$helper->set_schema( 'Person' );
-        $this->sameAs = $helper->get_author_social_info();
+        $this->sameAs = $helper->get_schema_org( 'sameAs' );
         $this->name   = $helper->get_schema_org( 'name' );
         $this->url    = $helper->get_schema_org( 'url' );
-        if ( ! is_null( $helper->get_schema_org( 'Place:longitude' ) ) && ! is_null( $helper->get_schema_org( 'Place:latitude' ) )) {
+        if ( ! is_null( $helper->get_schema_org( 'workLocation:longitude' ) ) && ! is_null( $helper->get_schema_org( 'workLocation:latitude' ) )) {
+            static::$helper->set_target_property( 'workLocation' );
             $this->workLocation = new Place( $helper );
         }
         $this->jobTitle = $helper->get_schema_org( 'jobTitle' );
@@ -181,7 +182,7 @@ class Organization extends Thing
     {
         static::$helper = $helper;
         static::$helper->set_schema( 'Organization' );
-        $this->sameAs        = $helper->get_social_urls();
+        $this->sameAs        = $helper->get_schema_org( 'sameAs' );
         $this->logo          = $helper->get_schema_org( 'logo' );
         $this->name          = $helper->get_schema_org( 'name' );
         $this->alternateName = $helper->get_schema_org( 'alternateName' );
@@ -241,7 +242,7 @@ abstract class CreativeWork extends Thing
     protected function get_publishers()
     {
         $helper     = static::$helper;
-        $publishers = $helper->get_schema_org( 'publisher', $helper::GENERAL_SETTING );
+        $publishers = $helper->get_schema_org( 'publisher' );
         if (is_array( $publishers )) {
             $this->publisher = new Thing_Collection();
             foreach ($publishers as $helper) {
@@ -305,11 +306,11 @@ class Article extends CreativeWork
     public function __construct( ICanHelpWithJSONLD $helper )
     {
         parent::__construct( $helper );
-        $this->articleSection = $helper->get_schema_org( 'articleSection');
-        $this->wordCount      = $helper->get_schema_org( 'wordCount');
+        $this->articleSection = $helper->get_schema_org( 'articleSection' );
+        $this->wordCount      = $helper->get_schema_org( 'wordCount' );
         $user_website         = $helper->get_schema_org( 'Person:url' );
         if ( ! empty( $user_website ) && ! is_null( $user_website )) {
-            $thing = new Thing( array( 'url' => $helper->get_schema_org( 'Person:url' )) );
+            $thing = new Thing( array( 'url' => $helper->get_schema_org( 'Person:url' ) ) );
             $thing->set_type( 'Person' );
             $this->author = $thing;
         }
@@ -339,8 +340,8 @@ class GeoCoordinates extends Thing
      */
     public function __construct( ICanHelpWithJSONLD $helper )
     {
-        $this->longitude = $helper->get_schema_org( 'Place:longitude' );
-        $this->latitude  = $helper->get_schema_org( 'Place:latitude');
+        $this->longitude = $helper->get_schema_org( sprintf( '%s:%s', $helper->get_target_property(), 'longitude' ) );
+        $this->latitude  = $helper->get_schema_org( sprintf( '%s:%s', $helper->get_target_property(), 'latitude' ) );
     }
 }
 

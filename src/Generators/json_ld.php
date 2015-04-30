@@ -18,7 +18,7 @@ class JSON_LD
         $this->helper = $helper;
     }
 
-    protected function json_ld_output( $output )
+    public static function json_ld_output( $output )
     {
         if ( ! empty( $output )) {
             echo sprintf( '<script type="application/ld+json">%s</script>' . PHP_EOL, $output );
@@ -60,5 +60,3 @@ class JSON_LD_Maker
         return null;
     }
 }
-
-

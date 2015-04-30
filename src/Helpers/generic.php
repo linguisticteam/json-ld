@@ -6,16 +6,9 @@ interface ICanHelp
 
 interface ICanHelpWithJSONLD
 {
-    const USER_SETTING = 1;
-    const USER_META_SETTING = 2;
-    const GENERAL_SETTING = 3;
-    const POST_SETTING = 4;
-    const POST_META_SETTING = 5;
-    const HELPER_SETTING = 6;
-
     public function get_social_urls();
 
-    public function get_schema_org( $setting, $setting_type );
+    public function get_schema_org( $setting );
 
     public function get_author_social_info();
 
@@ -28,11 +21,15 @@ interface ICanHelpWithJSONLD
     public function date_get_year( $value );
 
     public function get_thumbnail_url();
+
+    public function set_schema($object);
+
 }
 
 abstract class Generic_Helper implements ICanHelpWithJSONLD
 {
     protected $settings;
+    protected $schema;
 
     public function __construct( $settings )
     {
@@ -43,4 +40,14 @@ abstract class Generic_Helper implements ICanHelpWithJSONLD
     {
         return $this->settings;
     }
+
+    public function set_schema($object){
+        $this->schema = $object;
+    }
+
+    public function get_schema(){
+        return $this->schema;
+    }
+
+
 }

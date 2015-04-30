@@ -2,7 +2,13 @@
 
 use Lti\Seo\Helpers\ICanHelpWithJSONLD;
 
-class Thing
+interface ICanBecomeJSONLD
+{
+    public function format();
+
+}
+
+class Thing implements ICanBecomeJSONLD
 {
     /**
      * @var \Lti\Seo\Helpers\ICanHelpWithJSONLD
@@ -41,18 +47,25 @@ class Thing
 
     public function format()
     {
-        $result = array();
+        $result     = array();
+        $this_class = new \ReflectionClass( $this );
 
-        $result["@type"] = $this->get_type();
-        $values          = get_object_vars( $this );
+        $type = $this_class->getShortName();
+        if ($type == 'Thing') {
+            $type = $this_class::$type;
+        }
+
+        $result["@type"] = $type;
+        $values          = array_filter( get_object_vars( $this ) );
 
         foreach ($values as $key => $value) {
-            if ( ! is_null( $value ) && ! empty( $value )) {
-                if ($value instanceof Thing) {
-                    $result[$key] = $value->format();
-                } else {
-                    $result[$key] = $value;
+            if ($value instanceof ICanBecomeJSONLD) {
+                $formatted = $value->format();
+                if ( ! empty( $formatted )) {
+                    $result[$key] = $formatted;
                 }
+            } else {
+                $result[$key] = $value;
             }
         }
 
@@ -69,6 +82,57 @@ class Thing
             }
         }
     }
+}
+
+class Thing_Collection implements \Iterator, ICanBecomeJSONLD
+{
+    private $key = 0;
+    private $val = array();
+
+    public function current()
+    {
+        return $this->val[$this->$key];
+    }
+
+    public function next()
+    {
+        ++ $this->$key;
+    }
+
+    public function key()
+    {
+        return $this->key;
+    }
+
+    public function valid()
+    {
+        return isset( $this->val[$this->key] );
+    }
+
+    public function rewind()
+    {
+        $this->key = 0;
+    }
+
+    public function add( Thing $thing )
+    {
+        $this->val[] = $thing;
+    }
+
+    public function format()
+    {
+        $vals = array();
+        foreach ($this->val as $val) {
+            $formatted = $val->format();
+
+            //If the formatting doesn't add values to the array, no need to add an empty json-ld object.
+            if (count( $formatted ) > 1) {
+                $vals[] = $formatted;
+            }
+        }
+
+        return $vals;
+    }
 
 }
 
@@ -79,9 +143,7 @@ class Action extends Thing
 
 class SearchAction extends Action
 {
-
     protected $query;
-    protected static $type = 'SearchAction';
 }
 
 interface ICanSearch
@@ -91,47 +153,45 @@ interface ICanSearch
 
 class Person extends Thing
 {
-
-    protected static $type = 'Person';
-
     /**
      * @param \Lti\Seo\Helpers\ICanHelpWithJSONLD $helper
      */
     public function __construct( ICanHelpWithJSONLD $helper )
     {
-        static::$helper     = $helper;
-        $this->sameAs       = $helper->get_author_social_info();
-        $this->name         = $helper->get_schema_org( 'display_name', $helper::USER_SETTING );
-        $this->url          = $helper->get_schema_org( 'user_url', $helper::USER_SETTING );
-        $this->workLocation = new Place( $helper );
-        $this->jobTitle     = $helper->get_schema_org( 'job_title', $helper::USER_META_SETTING );
-        $this->email        = $helper->get_schema_org( 'public_email', $helper::USER_META_SETTING );
+        static::$helper = $helper;
+        static::$helper->set_schema( 'Person' );
+        $this->sameAs = $helper->get_author_social_info();
+        $this->name   = $helper->get_schema_org( 'name' );
+        $this->url    = $helper->get_schema_org( 'url' );
+        if ( ! is_null( $helper->get_schema_org( 'Place:longitude' ) ) && ! is_null( $helper->get_schema_org( 'Place:latitude' ) )) {
+            $this->workLocation = new Place( $helper );
+        }
+        $this->jobTitle = $helper->get_schema_org( 'jobTitle' );
+        $this->email    = $helper->get_schema_org( 'email' );
     }
 
 }
 
 class Organization extends Thing
 {
-
-    protected static $type = 'Organization';
-
     /**
      * @param \Lti\Seo\Helpers\ICanHelpWithJSONLD $helper
      */
     public function __construct( ICanHelpWithJSONLD $helper )
     {
-        static::$helper      = $helper;
+        static::$helper = $helper;
+        static::$helper->set_schema( 'Organization' );
         $this->sameAs        = $helper->get_social_urls();
-        $this->logo          = $helper->get_schema_org( 'type_logo_url', $helper::GENERAL_SETTING );
-        $this->name          = $helper->get_schema_org( 'type_name', $helper::GENERAL_SETTING );
-        $this->alternateName = $helper->get_schema_org( 'type_alternate_name', $helper::GENERAL_SETTING );
-        $this->url           = $helper->get_schema_org( 'type_website_url', $helper::GENERAL_SETTING );
+        $this->logo          = $helper->get_schema_org( 'logo' );
+        $this->name          = $helper->get_schema_org( 'name' );
+        $this->alternateName = $helper->get_schema_org( 'alternateName' );
+        $this->url           = $helper->get_schema_org( 'url' );
     }
-
 }
 
 abstract class CreativeWork extends Thing
 {
+    protected $author;
     protected $publisher;
     protected $datePublished;
     protected $dateModified;
@@ -146,25 +206,46 @@ abstract class CreativeWork extends Thing
      */
     public function __construct( ICanHelpWithJSONLD $helper )
     {
-        $this->url          = $helper->get_current_url();
-        $this->headline     = $helper->get_schema_org( 'title', $helper::HELPER_SETTING );
-        $this->keywords     = $helper->get_schema_org( 'tags', $helper::HELPER_SETTING );
-        $this->thumbnailUrl = $helper->get_schema_org( 'thumbnail_url', $helper::HELPER_SETTING );
-        $this->inLanguage   = $helper->get_schema_org( 'language', $helper::HELPER_SETTING );
+        static::$helper = $helper;
+        $this_class     = new \ReflectionClass( $this );
+        $type           = $this_class->getShortName();
+        static::$helper->set_schema( $type );
+        $this->url           = $helper->get_current_url();
+        $this->headline      = $helper->get_schema_org( 'headline' );
+        $this->keywords      = $helper->get_schema_org( 'keywords' );
+        $this->thumbnailUrl  = $helper->get_schema_org( 'thumbnailUrl' );
+        $this->inLanguage    = $helper->get_schema_org( 'inLanguage' );
+        $this->datePublished = $helper->get_schema_org( 'datePublished' );
+        $this->dateModified  = $helper->get_schema_org( 'dateModified' );
+        $this->copyrightYear = $helper->get_schema_org( 'copyrightYear' );
+        $this->get_authors();
+        $this->get_publishers();
     }
 
-    protected function get_author_publisher()
+    protected function get_authors()
     {
-        $helper = static::$helper;
-        if ($helper->get_schema_org( 'entity', $helper::GENERAL_SETTING )) {
-            $type = $helper->get_schema_org( 'entity_type', $helper::GENERAL_SETTING );
-            switch ($type) {
-                case "person":
-                    $this->author = new Person( $helper );
-                    break;
-                case "organization":
-                    $this->publisher = new Organization( $helper );
-                    break;
+        $helper  = static::$helper;
+        $authors = $helper->get_schema_org( 'author' );
+
+        if (is_array( $authors )) {
+            $this->author = new Thing_Collection();
+            foreach ($authors as $type => $helper) {
+                $class = __NAMESPACE__ . "\\" . $type;
+                if (class_exists( $class )) {
+                    $this->author->add( new $class( $helper ) );
+                }
+            }
+        }
+    }
+
+    protected function get_publishers()
+    {
+        $helper     = static::$helper;
+        $publishers = $helper->get_schema_org( 'publisher', $helper::GENERAL_SETTING );
+        if (is_array( $publishers )) {
+            $this->publisher = new Thing_Collection();
+            foreach ($publishers as $helper) {
+                $this->publisher->add( new Organization( $helper ) );
             }
         }
     }
@@ -172,31 +253,19 @@ abstract class CreativeWork extends Thing
 
 class WebSite extends CreativeWork
 {
-
-    protected static $type = 'WebSite';
-
     /**
      * @param \Lti\Seo\Helpers\ICanHelpWithJSONLD $helper
      */
     public function __construct( ICanHelpWithJSONLD $helper )
     {
         parent::__construct( $helper );
-        static::$helper = $helper;
-
         $this->addPotentialAction( $helper );
-        $this->get_author_publisher();
-
     }
 
-    public function get_type()
-    {
-        return 'WebSite';
-    }
 }
 
 class Blog extends CreativeWork
 {
-    protected static $type = 'Blog';
     protected $blogPosting;
 
     /**
@@ -205,39 +274,28 @@ class Blog extends CreativeWork
     public function __construct( ICanHelpWithJSONLD $helper )
     {
         parent::__construct( $helper );
-        static::$helper = $helper;
-        $class          = $helper->get_search_action_type();
-        if (class_exists( $class )) {
-            $this->potentialAction = new $class( $helper );
-        }
-        $this->get_author_publisher();
 
+        $this->addPotentialAction( $helper );
     }
 }
 
 class WebPage extends CreativeWork
 {
 
-    protected static $type = 'WebPage';
-
     /**
      * @param \Lti\Seo\Helpers\ICanHelpWithJSONLD $helper
      */
     public function __construct( ICanHelpWithJSONLD $helper )
     {
+        static::$helper = $helper;
+        static::$helper->set_schema( 'WebPage' );
         parent::__construct( $helper );
-        $this->datePublished = $helper->date_conversion( $helper->get_schema_org( 'post_date',
-            $helper::POST_SETTING ) );
-        $this->dateModified  = $helper->date_conversion( $helper->get_schema_org( 'post_modified',
-            $helper::POST_SETTING ) );
-        $this->copyrightYear = $helper->date_get_year( $helper->get_schema_org( 'post_modified',
-            $helper::POST_SETTING ) );
+
     }
 }
 
 class Article extends CreativeWork
 {
-    protected static $type = 'Article';
     protected $articleSection;
     protected $wordCount;
 
@@ -247,11 +305,11 @@ class Article extends CreativeWork
     public function __construct( ICanHelpWithJSONLD $helper )
     {
         parent::__construct( $helper );
-        $this->articleSection = $helper->get_schema_org( 'categories', $helper::GENERAL_SETTING );
-        $this->wordCount      = $helper->get_schema_org( 'word_count', $helper::POST_META_SETTING );
-        $user_website         = $helper->get_schema_org( 'user_url', $helper::USER_SETTING );
+        $this->articleSection = $helper->get_schema_org( 'articleSection');
+        $this->wordCount      = $helper->get_schema_org( 'wordCount');
+        $user_website         = $helper->get_schema_org( 'Person:url' );
         if ( ! empty( $user_website ) && ! is_null( $user_website )) {
-            $thing = new Thing( array( 'url' => $helper->get_schema_org( 'user_url', $helper::USER_SETTING ) ) );
+            $thing = new Thing( array( 'url' => $helper->get_schema_org( 'Person:url' )) );
             $thing->set_type( 'Person' );
             $this->author = $thing;
         }
@@ -261,7 +319,6 @@ class Article extends CreativeWork
 class Place extends Thing
 {
     protected $geo;
-    protected static $type = 'Place';
 
     /**
      * @param \Lti\Seo\Helpers\ICanHelpWithJSONLD $helper
@@ -276,42 +333,35 @@ class GeoCoordinates extends Thing
 {
     protected $longitude;
     protected $latitude;
-    protected static $type = 'GeoCoordinates';
 
     /**
      * @param \Lti\Seo\Helpers\ICanHelpWithJSONLD $helper
      */
     public function __construct( ICanHelpWithJSONLD $helper )
     {
-        $this->longitude = $helper->get_schema_org( 'work_longitude', $helper::USER_META_SETTING );
-        $this->latitude  = $helper->get_schema_org( 'work_latitude', $helper::USER_META_SETTING );
+        $this->longitude = $helper->get_schema_org( 'Place:longitude' );
+        $this->latitude  = $helper->get_schema_org( 'Place:latitude');
     }
 }
 
 class BlogPosting extends Article
 {
-    protected static $type = 'BlogPosting';
 }
 
 class NewsArticle extends Article
 {
-    protected static $type = 'NewsArticle';
 }
 
 class ScholarlyArticle extends Article
 {
-    protected static $type = 'ScholarlyArticle';
 }
 
 class TechArticle extends Article
 {
-    protected static $type = 'TechArticle';
 }
 
 class SearchResultsPage extends WebPage
 {
-    protected static $type = 'SearchResultsPage';
-
     public function __construct( ICanHelpWithJSONLD $helper )
     {
         Thing::__construct( array( 'url' => $helper->get_current_url() ) );

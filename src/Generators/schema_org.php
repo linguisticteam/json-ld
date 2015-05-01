@@ -51,8 +51,11 @@ class Thing implements ICanBecomeJSONLD
         $this_class = new \ReflectionClass( $this );
 
         $type = $this_class->getShortName();
+
+        //Sometimes we want to create an object on the fly, so we create a Thing and assign a type manually
+        //In that case, our type is taken from the type attribute rather than from the classname
         if ($type == 'Thing') {
-            $type = $this_class::$type;
+            $type = $this::$type;
         }
 
         $result["@type"] = $type;
@@ -208,9 +211,7 @@ abstract class CreativeWork extends Thing
     public function __construct( ICanHelpWithJSONLD $helper )
     {
         static::$helper = $helper;
-        $this_class     = new \ReflectionClass( $this );
-        $type           = $this_class->getShortName();
-        static::$helper->set_schema( $type );
+        static::$helper->set_schema( 'CreativeWork' );
         $this->url           = $helper->get_current_url();
         $this->headline      = $helper->get_schema_org( 'headline' );
         $this->keywords      = $helper->get_schema_org( 'keywords' );
@@ -283,16 +284,6 @@ class Blog extends CreativeWork
 class WebPage extends CreativeWork
 {
 
-    /**
-     * @param \Lti\Seo\Helpers\ICanHelpWithJSONLD $helper
-     */
-    public function __construct( ICanHelpWithJSONLD $helper )
-    {
-        static::$helper = $helper;
-        static::$helper->set_schema( 'WebPage' );
-        parent::__construct( $helper );
-
-    }
 }
 
 class Article extends CreativeWork
@@ -306,11 +297,12 @@ class Article extends CreativeWork
     public function __construct( ICanHelpWithJSONLD $helper )
     {
         parent::__construct( $helper );
+        static::$helper->set_schema( 'Article' );
         $this->articleSection = $helper->get_schema_org( 'articleSection' );
         $this->wordCount      = $helper->get_schema_org( 'wordCount' );
         $user_website         = $helper->get_schema_org( 'Person:url' );
         if ( ! empty( $user_website ) && ! is_null( $user_website )) {
-            $thing = new Thing( array( 'url' => $helper->get_schema_org( 'Person:url' ) ) );
+            $thing = new Thing( array( 'url' => $user_website ) );
             $thing->set_type( 'Person' );
             $this->author = $thing;
         }

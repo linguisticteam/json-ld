@@ -197,6 +197,8 @@ abstract class CreativeWork extends Thing
 {
     protected $author;
     protected $publisher;
+    protected $contributor;
+    protected $translator;
     protected $datePublished;
     protected $dateModified;
     protected $copyrightYear;
@@ -220,8 +222,27 @@ abstract class CreativeWork extends Thing
         $this->datePublished = $helper->get_schema_org( 'datePublished' );
         $this->dateModified  = $helper->get_schema_org( 'dateModified' );
         $this->copyrightYear = $helper->get_schema_org( 'copyrightYear' );
-        $this->get_authors();
-        $this->get_publishers();
+        $this->get_author();
+        $this->get_publisher();
+        $this->get_contributor();
+        $this->get_translator();
+    }
+
+    public function __call( $name, $arguments )
+    {
+        if (strpos( $name, "get_" ) !== false) {
+            $entity = substr( $name, 4 );
+            $data   = static::$helper->get_schema_org( $entity );
+            if (is_array( $data )) {
+                $this->{$entity} = new Thing_Collection();
+                foreach ($data as $type => $helper) {
+                    $class = __NAMESPACE__ . "\\" . $type;
+                    if (class_exists( $class )) {
+                        $this->{$entity}->add( new $class( $helper ) );
+                    }
+                }
+            }
+        }
     }
 
     protected function get_authors()
@@ -241,6 +262,18 @@ abstract class CreativeWork extends Thing
     }
 
     protected function get_publishers()
+    {
+        $helper     = static::$helper;
+        $publishers = $helper->get_schema_org( 'publisher' );
+        if (is_array( $publishers )) {
+            $this->publisher = new Thing_Collection();
+            foreach ($publishers as $helper) {
+                $this->publisher->add( new Organization( $helper ) );
+            }
+        }
+    }
+
+    protected function get_contributors()
     {
         $helper     = static::$helper;
         $publishers = $helper->get_schema_org( 'publisher' );

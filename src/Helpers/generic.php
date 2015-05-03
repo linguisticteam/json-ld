@@ -1,9 +1,9 @@
 <?php namespace Lti\Seo\Helpers;
 
-interface ICanHelp
-{
-}
-
+/**
+ * Interface ICanHelpWithJSONLD
+ * @package Lti\Seo\Helpers
+ */
 interface ICanHelpWithJSONLD
 {
     public function get_schema_org( $setting );
@@ -20,10 +20,21 @@ interface ICanHelpWithJSONLD
 
 }
 
+/**
+ * Class Generic_Helper
+ * @package Lti\Seo\Helpers
+ */
 abstract class Generic_Helper implements ICanHelpWithJSONLD
 {
     protected $settings;
     protected $schema;
+    /**
+     * Used when a schema.org object may have multiple objects of the same type within it
+     * i.e a Person entity having a workLocation and homeLocation which are instances of Place.
+     * This property  and its getter & setter prevent namespace collision
+     *
+     * @var string
+     */
     protected $target_property;
 
     public function __construct( $settings )
@@ -44,6 +55,10 @@ abstract class Generic_Helper implements ICanHelpWithJSONLD
         return $this->schema;
     }
 
+    /**
+     * @see Generic_Helper::$target_property
+     * @return string
+     */
     public function get_target_property(){
         return $this->target_property;
     }
@@ -51,7 +66,5 @@ abstract class Generic_Helper implements ICanHelpWithJSONLD
     public function set_target_property($property){
         $this->target_property = $property;
     }
-
-
 
 }

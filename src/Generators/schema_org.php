@@ -168,7 +168,7 @@ class Person extends Thing
         $this->url    = $helper->get_schema_org( 'url' );
         if ( ! is_null( $helper->get_schema_org( 'workLocation:longitude' ) ) && ! is_null( $helper->get_schema_org( 'workLocation:latitude' ) )) {
             static::$helper->set_target_property( 'workLocation' );
-            $this->workLocation = new Place( $helper );
+            $this->workLocation = new Place( static::$helper );
         }
         $this->jobTitle = $helper->get_schema_org( 'jobTitle' );
         $this->email    = $helper->get_schema_org( 'email' );
@@ -247,8 +247,7 @@ abstract class CreativeWork extends Thing
 
     protected function get_authors()
     {
-        $helper  = static::$helper;
-        $authors = $helper->get_schema_org( 'author' );
+        $authors = static::$helper->get_schema_org( 'author' );
 
         if (is_array( $authors )) {
             $this->author = new Thing_Collection();
@@ -263,8 +262,7 @@ abstract class CreativeWork extends Thing
 
     protected function get_publishers()
     {
-        $helper     = static::$helper;
-        $publishers = $helper->get_schema_org( 'publisher' );
+        $publishers = static::$helper->get_schema_org( 'publisher' );
         if (is_array( $publishers )) {
             $this->publisher = new Thing_Collection();
             foreach ($publishers as $helper) {
@@ -275,8 +273,7 @@ abstract class CreativeWork extends Thing
 
     protected function get_contributors()
     {
-        $helper     = static::$helper;
-        $publishers = $helper->get_schema_org( 'publisher' );
+        $publishers = static::$helper->get_schema_org( 'publisher' );
         if (is_array( $publishers )) {
             $this->publisher = new Thing_Collection();
             foreach ($publishers as $helper) {
@@ -333,12 +330,6 @@ class Article extends CreativeWork
         static::$helper->set_schema( 'Article' );
         $this->articleSection = $helper->get_schema_org( 'articleSection' );
         $this->wordCount      = $helper->get_schema_org( 'wordCount' );
-        $user_website         = $helper->get_schema_org( 'Person:url' );
-        if ( ! empty( $user_website ) && ! is_null( $user_website )) {
-            $thing = new Thing( array( 'url' => $user_website ) );
-            $thing->set_type( 'Person' );
-            $this->author = $thing;
-        }
     }
 }
 

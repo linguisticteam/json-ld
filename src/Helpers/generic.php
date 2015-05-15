@@ -21,10 +21,10 @@ interface ICanHelpWithJSONLD
 }
 
 /**
- * Class Generic_Helper
+ * Class JSONLD_Helper
  * @package Lti\Seo\Helpers
  */
-abstract class Generic_Helper implements ICanHelpWithJSONLD
+abstract class JSONLD_Helper implements ICanHelpWithJSONLD
 {
     protected $settings;
     protected $schema;

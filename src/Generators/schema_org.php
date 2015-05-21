@@ -158,12 +158,12 @@ class Thing_Collection implements \Iterator, ICanBecomeJSONLD
 
     public function current()
     {
-        return $this->val[$this->$key];
+        return $this->val[$this->key];
     }
 
     public function next()
     {
-        ++ $this->$key;
+        ++ $this->key;
     }
 
     public function key()
